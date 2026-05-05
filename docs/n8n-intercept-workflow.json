@@ -1,5 +1,5 @@
 {
-  "name": "Zdravnitsa Intercept -> Telegram",
+  "name": "Zdravnitsa Intercept -> Manager + Client Delivery",
   "nodes": [
     {
       "parameters": {
@@ -12,62 +12,266 @@
       "name": "Webhook Intercept",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
-      "position": [
-        260,
-        280
-      ]
+      "position": [240, 340]
     },
     {
       "parameters": {
         "assignments": {
           "assignments": [
             {
-              "name": "telegramMessage",
+              "name": "manager_message",
               "type": "string",
-              "value": "🔔 Новая заявка — Здравница\\n\\n👤 {{$json.name}}\\n📞 {{$json.phone}}\\n💬 {{$json.situation}}\\n\\n🤖 Мила ответила:\\n{{$json.agent_reply}}\\n\\n🕐 {{$now}}"
+              "value": "🔔 Новая заявка — Здравница\\n\\n🆔 Lead: {{$json.lead_id}}\\n👤 {{$json.name}}\\n📞 {{$json.phone}}\\n💬 {{$json.situation}}\\n\\n🤖 Мила ответила:\\n{{$json.agent_reply}}\\n\\n🚚 Автодоставка клиенту:\\nКанал: {{$json.delivery_channel}}\\nTarget: {{$json.auto_delivery_target}}\\nTG: {{$json.telegram_username}}\\n\\n🕐 {{$now}}"
+            },
+            {
+              "name": "client_message",
+              "type": "string",
+              "value": "Здравствуйте, {{$json.name}}!\\n\\nСпасибо за обращение в Здравницу.\\nМила уже подготовила первый ориентир:\\n{{$json.agent_reply}}\\n\\nЕсли удобно, мы можем организовать звонок со специалистом и подобрать следующий шаг."
+            },
+            {
+              "name": "normalized_channel",
+              "type": "string",
+              "value": "={{ String($json.delivery_channel || '').toLowerCase().trim() }}"
             }
           ]
         },
         "options": {}
       },
-      "id": "Set_Message",
-      "name": "Set Telegram Message",
+      "id": "Set_Payload",
+      "name": "Set Payload",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [
-        500,
-        280
-      ]
+      "position": [500, 340]
     },
     {
       "parameters": {
         "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
-        "text": "={{$json.telegramMessage}}",
+        "text": "={{$json.manager_message}}",
         "additionalFields": {}
       },
-      "id": "Telegram_Send",
-      "name": "Telegram Send Message",
+      "id": "Telegram_Manager",
+      "name": "Telegram Manager Notify",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [
-        760,
-        280
-      ]
+      "position": [760, 220]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": false,
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.normalized_channel}}",
+                    "rightValue": "telegram",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": false,
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.normalized_channel}}",
+                    "rightValue": "whatsapp",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "version": 2,
+                  "leftValue": "",
+                  "caseSensitive": false,
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.normalized_channel}}",
+                    "rightValue": "sms",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Switch_Channel",
+      "name": "Switch Delivery Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [760, 460]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.CLIENT_DELIVERY_TELEGRAM_WEBHOOK}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"lead_id\":\"{{$json.lead_id}}\",\"channel\":\"telegram\",\"telegram_username\":\"{{$json.telegram_username}}\",\"message\":\"{{$json.client_message}}\",\"phone\":\"{{$json.phone}}\",\"name\":\"{{$json.name}}\"}",
+        "options": {}
+      },
+      "id": "HTTP_Telegram_Client",
+      "name": "Client Delivery Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.CLIENT_DELIVERY_WHATSAPP_WEBHOOK}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"lead_id\":\"{{$json.lead_id}}\",\"channel\":\"whatsapp\",\"phone\":\"{{$json.phone}}\",\"message\":\"{{$json.client_message}}\",\"name\":\"{{$json.name}}\"}",
+        "options": {}
+      },
+      "id": "HTTP_WhatsApp_Client",
+      "name": "Client Delivery WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 460]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.CLIENT_DELIVERY_SMS_WEBHOOK}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"lead_id\":\"{{$json.lead_id}}\",\"channel\":\"sms\",\"phone\":\"{{$json.phone}}\",\"message\":\"{{$json.client_message}}\",\"name\":\"{{$json.name}}\"}",
+        "options": {}
+      },
+      "id": "HTTP_SMS_Client",
+      "name": "Client Delivery SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1040, 560]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "delivery_status",
+              "type": "string",
+              "value": "unsupported_channel"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "Set_Unsupported",
+      "name": "Set Unsupported Channel",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1040, 660]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={\"ok\": true, \"source\": \"n8n\", \"receivedAt\": \"{{$now}}\"}",
+        "responseBody": "={\"ok\": true, \"source\": \"n8n\", \"channel\": \"telegram\", \"lead_id\": \"{{$json.lead_id}}\", \"receivedAt\": \"{{$now}}\"}",
         "options": {}
       },
-      "id": "Respond",
-      "name": "Respond to Webhook",
+      "id": "Respond_Telegram",
+      "name": "Respond Telegram",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
-      "position": [
-        1020,
-        280
-      ]
+      "position": [1320, 360]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": true, \"source\": \"n8n\", \"channel\": \"whatsapp\", \"lead_id\": \"{{$json.lead_id}}\", \"receivedAt\": \"{{$now}}\"}",
+        "options": {}
+      },
+      "id": "Respond_WhatsApp",
+      "name": "Respond WhatsApp",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1320, 460]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": true, \"source\": \"n8n\", \"channel\": \"sms\", \"lead_id\": \"{{$json.lead_id}}\", \"receivedAt\": \"{{$now}}\"}",
+        "options": {}
+      },
+      "id": "Respond_SMS",
+      "name": "Respond SMS",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1320, 560]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": false, \"error\": \"unsupported delivery_channel\", \"received_channel\": \"{{$json.normalized_channel}}\", \"lead_id\": \"{{$json.lead_id}}\", \"receivedAt\": \"{{$now}}\"}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "Respond_Unsupported",
+      "name": "Respond Unsupported",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1320, 660]
     }
   ],
   "connections": {
@@ -75,29 +279,99 @@
       "main": [
         [
           {
-            "node": "Set Telegram Message",
+            "node": "Set Payload",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Telegram Message": {
+    "Set Payload": {
       "main": [
         [
           {
-            "node": "Telegram Send Message",
+            "node": "Telegram Manager Notify",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Switch Delivery Channel",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Telegram Send Message": {
+    "Switch Delivery Channel": {
       "main": [
         [
           {
-            "node": "Respond to Webhook",
+            "node": "Client Delivery Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Client Delivery WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Client Delivery SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Unsupported Channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client Delivery Telegram": {
+      "main": [
+        [
+          {
+            "node": "Respond Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client Delivery WhatsApp": {
+      "main": [
+        [
+          {
+            "node": "Respond WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Client Delivery SMS": {
+      "main": [
+        [
+          {
+            "node": "Respond SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Unsupported Channel": {
+      "main": [
+        [
+          {
+            "node": "Respond Unsupported",
             "type": "main",
             "index": 0
           }
@@ -109,5 +383,5 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1"
+  "versionId": "2"
 }

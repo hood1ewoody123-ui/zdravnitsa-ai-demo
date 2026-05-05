@@ -54,11 +54,14 @@ export function InterceptForm() {
       name: "",
       phone: "",
       situation: "",
+      delivery_channel: "whatsapp",
+      telegram_username: "",
     },
   });
 
   const situationLen = watch("situation")?.length || 0;
   const phoneValue = watch("phone") || "";
+  const deliveryChannel = watch("delivery_channel");
 
   const statusClass = useMemo(() => {
     if (interceptStatus.includes("ошибка")) return "text-error";
@@ -87,6 +90,8 @@ export function InterceptForm() {
           phone: values.phone,
           situation: values.situation,
           agent_reply: reply,
+          delivery_channel: values.delivery_channel,
+          telegram_username: values.telegram_username || null,
           timestamp: new Date().toISOString(),
         }),
       });
@@ -100,7 +105,9 @@ export function InterceptForm() {
         reply,
         time: new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }),
       });
-      setInterceptStatus("Отправка успешно завершена, менеджер получил уведомление.");
+      setInterceptStatus(
+        `Отправка успешно завершена, менеджер получил уведомление.${notifyPayload?.leadId ? ` ID заявки: ${notifyPayload.leadId}` : ""}`,
+      );
     } catch (error) {
       setInterceptStatus(`Произошла ошибка: ${(error as Error).message}`);
     }
@@ -128,6 +135,27 @@ export function InterceptForm() {
         </div>
 
         <div>
+          <label className="mb-1.5 block text-xs font-medium text-muted">Канал автодоставки клиенту</label>
+          <select
+            className="flex h-11 w-full rounded-lg border border-outline bg-surface-container-high px-3 py-2 text-sm text-foreground"
+            {...register("delivery_channel")}
+          >
+            <option value="whatsapp">WhatsApp (рекомендуется)</option>
+            <option value="sms">SMS</option>
+            <option value="telegram">Telegram</option>
+          </select>
+          <p className="mt-1 min-h-5 text-xs text-error">{errors.delivery_channel?.message}</p>
+        </div>
+
+        {deliveryChannel === "telegram" ? (
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-muted">Telegram username клиента</label>
+            <Input placeholder="@username" autoComplete="off" {...register("telegram_username")} />
+            <p className="mt-1 min-h-5 text-xs text-error">{errors.telegram_username?.message}</p>
+          </div>
+        ) : null}
+
+        <div>
           <label className="mb-1.5 block text-xs font-medium text-muted">Ситуация</label>
           <Textarea rows={4} placeholder="Кратко опишите ситуацию" maxLength={400} {...register("situation")} />
           <div className="mt-1 flex items-center justify-between">
@@ -141,6 +169,9 @@ export function InterceptForm() {
           {isSubmitting ? "Отправляем..." : "Отправить заявку"}
         </Button>
 
+        <p className="text-xs text-muted">
+          Если менеджер недоступен, система автоматически отправит клиенту сообщение в выбранный канал в течение ~30 секунд.
+        </p>
         <p className={`min-h-5 text-sm ${statusClass}`}>{interceptStatus}</p>
       </form>
 

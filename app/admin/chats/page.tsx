@@ -1,4 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +45,25 @@ async function getData() {
   return { sessions: (sessions || []) as SessionRow[], messages };
 }
 
-export default async function AdminChatsPage() {
+type AdminChatsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function pickToken(value: string | string[] | undefined) {
+  if (Array.isArray(value)) return value[0] || "";
+  return value || "";
+}
+
+export default async function AdminChatsPage({ searchParams }: AdminChatsPageProps) {
+  const adminToken = process.env.ADMIN_TOKEN;
+  const resolvedSearchParams = (await searchParams) || {};
+  const queryToken = pickToken(resolvedSearchParams.token);
+  const headerToken = (await headers()).get("x-admin-token") || "";
+
+  if (!adminToken || (queryToken !== adminToken && headerToken !== adminToken)) {
+    notFound();
+  }
+
   const { sessions, messages } = await getData();
   const grouped = new Map<string, MessageRow[]>();
   for (const message of messages) {

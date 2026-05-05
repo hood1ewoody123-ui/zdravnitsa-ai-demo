@@ -344,6 +344,23 @@ N8N_WEBHOOK_PROTOCOL=https://.../webhook/protocol
 - [ ] Перенести протоколист (upload -> whisper -> protocol json -> PDF)
 - [x] Перенести чат-виджет со стримингом
 - [x] Удалить legacy Vanilla слой (`index.html`, `style.css`, `app.js`) после проверки parity
+- [ ] Минимально защитить `/admin/chats` через `ADMIN_TOKEN` перед публичным деплоем
+- [x] Серверно фиксировать заявки перехвата в Supabase (`intercept_leads_demo`) с `webhook_status`
+- [x] Добавить в hero-форму перехвата выбор канала автодоставки клиенту (`whatsapp/sms/telegram`) + `telegram_username` для Telegram
+
+#### Детализация переноса протоколиста (следующий инкремент)
+- [ ] Описать и реализовать UX-флоу протоколиста в Next: upload -> прогресс -> результат
+- [ ] Добавить в форму отправки PDF поле `telegram_username` (в формате `@username`) и валидацию
+- [ ] Спроектировать каноничный шаблон PDF (структура, блоки, типографика, место под логотип)
+- [ ] Подключить логотип Здравницы в шапку PDF (после получения файла логотипа)
+- [ ] Реализовать генерацию PDF в клиенте (`jsPDF`) по шаблону
+- [ ] Определить финальный payload в n8n для отправки PDF:
+  - [ ] `telegram_username`
+  - [ ] `pdf_base64`
+  - [ ] `summary_json` (опционально)
+  - [ ] `session_id` / `timestamp`
+- [ ] Подготовить JSON-шаблон n8n workflow для протоколиста (по аналогии с intercept)
+- [ ] Провести end-to-end тест: mp3 -> whisper -> summary -> pdf -> n8n -> отправка в Telegram
 
 ### Фаза 1 — Память чата + База знаний (RAG)
 - [x] Добавить Supabase в проект (env, server client, базовая проверка подключения)

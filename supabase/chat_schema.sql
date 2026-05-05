@@ -40,3 +40,26 @@ create table if not exists public.knowledge_chunks_demo (
 
 create index if not exists knowledge_chunks_demo_source_idx
   on public.knowledge_chunks_demo(source_url);
+
+create table if not exists public.intercept_leads_demo (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  phone text not null,
+  situation text not null,
+  agent_reply text not null,
+  source text not null default 'landing_intercept',
+  webhook_status text not null default 'pending',
+  delivery_channel text not null default 'whatsapp',
+  telegram_username text,
+  webhook_response text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.intercept_leads_demo
+  add column if not exists delivery_channel text not null default 'whatsapp';
+
+alter table public.intercept_leads_demo
+  add column if not exists telegram_username text;
+
+create index if not exists intercept_leads_demo_created_idx
+  on public.intercept_leads_demo(created_at desc);
