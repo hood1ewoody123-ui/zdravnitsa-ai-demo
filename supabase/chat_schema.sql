@@ -7,8 +7,12 @@ create table if not exists public.chat_sessions_demo (
   visitor_fingerprint text,
   contact_phone text,
   status text not null default 'active',
+  last_activity_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
+
+alter table public.chat_sessions_demo
+  add column if not exists last_activity_at timestamptz not null default now();
 
 create table if not exists public.chat_messages_demo (
   id uuid primary key default gen_random_uuid(),
@@ -21,6 +25,9 @@ create table if not exists public.chat_messages_demo (
 
 create index if not exists chat_messages_demo_session_created_idx
   on public.chat_messages_demo(session_id, created_at);
+
+create index if not exists chat_sessions_demo_status_activity_idx
+  on public.chat_sessions_demo(status, last_activity_at);
 
 create table if not exists public.knowledge_chunks_demo (
   id uuid primary key default gen_random_uuid(),

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-const SOURCE_PATH = "docs/knowledge-system-prompt-oneline.txt";
+const SOURCE_PATHS = ["docs/knowledge-rag-clean.txt", "docs/knowledge-system-prompt-oneline.txt"];
 const OUTPUT_PATH = "docs/knowledge-system-prompt-compact.txt";
 const OUTPUT_RAG_PATH = "docs/knowledge-rag-clean.txt";
 
@@ -65,11 +65,12 @@ function scoreSentence(sentence) {
 }
 
 function run() {
-  if (!fs.existsSync(SOURCE_PATH)) {
-    throw new Error(`${SOURCE_PATH} not found`);
+  const sourcePath = SOURCE_PATHS.find((filePath) => fs.existsSync(filePath));
+  if (!sourcePath) {
+    throw new Error(`${SOURCE_PATHS.join(" or ")} not found`);
   }
 
-  const source = normalize(removeNoise(fs.readFileSync(SOURCE_PATH, "utf8")));
+  const source = normalize(removeNoise(fs.readFileSync(sourcePath, "utf8")));
   const rawSentences = source
     .split(/(?<=[.!?])\s+/)
     .map((line) => normalize(line))

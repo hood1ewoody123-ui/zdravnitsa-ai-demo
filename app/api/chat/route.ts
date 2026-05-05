@@ -60,12 +60,18 @@ function tryExtractJson(raw: string) {
 }
 
 async function ensureChatSession(sessionId?: string) {
-  if (sessionId) return sessionId;
-
   const supabase = createSupabaseServerClient();
+  if (sessionId) {
+    await supabase
+      .from("chat_sessions_demo")
+      .update({ status: "active", last_activity_at: new Date().toISOString() })
+      .eq("id", sessionId);
+    return sessionId;
+  }
+
   const { data, error } = await supabase
     .from("chat_sessions_demo")
-    .insert({ source: "widget", status: "active" })
+    .insert({ source: "widget", status: "active", last_activity_at: new Date().toISOString() })
     .select("id")
     .single();
 
@@ -91,6 +97,25 @@ async function saveChatMessage(params: {
 
   if (error) {
     throw new Error(`Unable to save chat message: ${error.message}`);
+  }
+
+  await supabase
+    .from("chat_sessions_demo")
+    .update({ status: "active", last_activity_at: new Date().toISOString() })
+    .eq("id", params.sessionId);
+}
+
+async function closeStaleSessions(inactiveMinutes = 30) {
+  const supabase = createSupabaseServerClient();
+  const thresholdIso = new Date(Date.now() - inactiveMinutes * 60_000).toISOString();
+  const { error } = await supabase
+    .from("chat_sessions_demo")
+    .update({ status: "closed" })
+    .eq("status", "active")
+    .lt("last_activity_at", thresholdIso);
+
+  if (error) {
+    throw new Error(`Unable to close stale sessions: ${error.message}`);
   }
 }
 
@@ -120,6 +145,7 @@ export async function POST(request: Request) {
 
   if (mode === "chat") {
     try {
+      await closeStaleSessions(30);
       chatSessionId = await ensureChatSession(body.sessionId);
       const latestUserMessage = [...userMessages].reverse().find((message) => message.role === "user");
       if (latestUserMessage?.content) {
