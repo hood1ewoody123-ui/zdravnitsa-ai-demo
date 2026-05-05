@@ -6,8 +6,6 @@ type InterceptNotifyBody = {
   phone?: string;
   situation?: string;
   agent_reply?: string;
-  delivery_channel?: "whatsapp" | "sms" | "telegram";
-  telegram_username?: string | null;
   timestamp?: string;
 };
 
@@ -18,12 +16,14 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as InterceptNotifyBody;
-  if (!body.name || !body.phone || !body.situation || !body.agent_reply || !body.delivery_channel) {
+  if (!body.name || !body.phone || !body.situation || !body.agent_reply) {
     return NextResponse.json(
-      { error: "Missing required fields: name, phone, situation, agent_reply, delivery_channel" },
+      { error: "Missing required fields: name, phone, situation, agent_reply" },
       { status: 400 },
     );
   }
+
+  const deliveryChannel = "telegram" as const;
 
   try {
     const supabase = createSupabaseServerClient();
@@ -36,8 +36,8 @@ export async function POST(request: Request) {
         agent_reply: body.agent_reply,
         source: "landing_intercept",
         webhook_status: "pending",
-        delivery_channel: body.delivery_channel,
-        telegram_username: body.telegram_username || null,
+        delivery_channel: deliveryChannel,
+        telegram_username: null,
       })
       .select("id")
       .single();
@@ -53,17 +53,18 @@ export async function POST(request: Request) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...body,
+        name: body.name,
+        phone: body.phone,
+        situation: body.situation,
+        agent_reply: body.agent_reply,
+        delivery_channel: deliveryChannel,
         lead_id: lead.id,
         client_delivery: {
-          channel: body.delivery_channel,
+          channel: deliveryChannel,
           phone: body.phone,
-          telegram_username: body.telegram_username || null,
+          telegram_username: null,
         },
-        auto_delivery_target:
-          body.delivery_channel === "telegram" && body.telegram_username
-            ? body.telegram_username
-            : body.phone,
+        auto_delivery_target: body.phone,
         timestamp: body.timestamp || new Date().toISOString(),
       }),
     });

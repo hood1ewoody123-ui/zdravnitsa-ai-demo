@@ -346,7 +346,7 @@ N8N_WEBHOOK_PROTOCOL=https://.../webhook/protocol
 - [x] Удалить legacy Vanilla слой (`index.html`, `style.css`, `app.js`) после проверки parity
 - [ ] Минимально защитить `/admin/chats` через `ADMIN_TOKEN` перед публичным деплоем
 - [x] Серверно фиксировать заявки перехвата в Supabase (`intercept_leads_demo`) с `webhook_status`
-- [x] Добавить в hero-форму перехвата выбор канала автодоставки клиенту (`whatsapp/sms/telegram`) + `telegram_username` для Telegram
+- [x] Перехват: только Telegram — после успешного n8n редирект в бота (`NEXT_PUBLIC_TELEGRAM_INTERCEPT_BOT`, deep link `?start=<lead_id>`)
 
 #### Детализация переноса протоколиста (следующий инкремент)
 - [ ] Описать и реализовать UX-флоу протоколиста в Next: upload -> прогресс -> результат
