@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageCircle, Send, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -18,7 +18,15 @@ export function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
+  const [sessionId, setSessionId] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: INITIAL_MESSAGE }]);
+
+  useEffect(() => {
+    const savedSessionId = window.localStorage.getItem("mila_chat_session_id");
+    if (savedSessionId) {
+      setSessionId(savedSessionId);
+    }
+  }, []);
 
   async function sendMessage() {
     const content = input.trim();
@@ -36,12 +44,19 @@ export function ChatWidget() {
         body: JSON.stringify({
           mode: "chat",
           stream: true,
+          sessionId,
           messages: nextMessages.map((item) => ({ role: item.role, content: item.content })),
         }),
       });
 
       if (!response.ok || !response.body) {
         throw new Error("Стриминг ответа недоступен");
+      }
+
+      const responseSessionId = response.headers.get("x-session-id");
+      if (responseSessionId && responseSessionId !== sessionId) {
+        setSessionId(responseSessionId);
+        window.localStorage.setItem("mila_chat_session_id", responseSessionId);
       }
 
       const reader = response.body.getReader();
@@ -132,6 +147,9 @@ export function ChatWidget() {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
+              <p className="mt-2 text-[11px] text-muted">
+                История переписки сохраняется для улучшения качества консультации.
+              </p>
             </div>
           </motion.div>
         ) : null}

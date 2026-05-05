@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { renderKnowledgeContext, retrieveKnowledge } from "@/lib/rag/retrieve";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const CHAT_MODEL = "anthropic/claude-sonnet-4-5";
@@ -24,7 +26,11 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 Никаких медицинских диагнозов.
 Если не знаешь - скажи, что уточнишь у врача.
 Цель: довести человека до записи или вызова врача на дом.
-После 3-го сообщения пользователя мягко предложи оставить контакт.
+Сначала прояви эмпатию и задай 1 уточняющий вопрос по ситуации.
+После 3-го сообщения пользователя мягко предложи запланировать звонок с врачом.
+Контакт (телефон) проси только после явного согласия пользователя на звонок.
+Если пользователь не готов оставить контакт, не дави и предложи продолжить диалог в чате.
+Если информации недостаточно или вопрос медицински чувствительный, честно скажи, что нужен живой специалист.
 Максимум 4 предложения в ответе.`,
 };
 
@@ -34,6 +40,7 @@ type ChatBody = {
   transcript?: string;
   messages?: Array<{ role: string; content: string }>;
   stream?: boolean;
+  sessionId?: string;
 };
 
 function safeJsonParse(value: string) {
@@ -52,7 +59,43 @@ function tryExtractJson(raw: string) {
   return safeJsonParse(match[0]);
 }
 
+async function ensureChatSession(sessionId?: string) {
+  if (sessionId) return sessionId;
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("chat_sessions_demo")
+    .insert({ source: "widget", status: "active" })
+    .select("id")
+    .single();
+
+  if (error || !data?.id) {
+    throw new Error(`Unable to create chat session: ${error?.message || "unknown error"}`);
+  }
+  return data.id as string;
+}
+
+async function saveChatMessage(params: {
+  sessionId: string;
+  role: "user" | "assistant" | "system";
+  content: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase.from("chat_messages_demo").insert({
+    session_id: params.sessionId,
+    role: params.role,
+    content: params.content,
+    metadata: params.metadata || {},
+  });
+
+  if (error) {
+    throw new Error(`Unable to save chat message: ${error.message}`);
+  }
+}
+
 export async function POST(request: Request) {
+  const requestStartedAt = Date.now();
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "OPENROUTER_API_KEY is not configured" }, { status: 500 });
@@ -61,7 +104,9 @@ export async function POST(request: Request) {
   const body = (await request.json()) as ChatBody;
   const mode = body.mode || "chat";
   const stream = Boolean(body.stream) && mode === "chat";
-  const systemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.chat;
+  const baseSystemPrompt = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.chat;
+  let chatSessionId = body.sessionId || "";
+  let retrievedChunksCount = 0;
 
   let userMessages = body.messages || [];
   if (mode === "intercept") {
@@ -71,6 +116,51 @@ export async function POST(request: Request) {
   if (mode === "protocol") {
     if (!body.transcript) return NextResponse.json({ error: "Missing field: transcript" }, { status: 400 });
     userMessages = [{ role: "user", content: `Транскрипт звонка:\n${body.transcript}` }];
+  }
+
+  if (mode === "chat") {
+    try {
+      chatSessionId = await ensureChatSession(body.sessionId);
+      const latestUserMessage = [...userMessages].reverse().find((message) => message.role === "user");
+      if (latestUserMessage?.content) {
+        await saveChatMessage({
+          sessionId: chatSessionId,
+          role: "user",
+          content: latestUserMessage.content,
+          metadata: {
+            model: CHAT_MODEL,
+            stream_requested: stream,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Chat persistence warning:", error);
+    }
+  }
+
+  let systemPrompt = baseSystemPrompt;
+  if (mode === "chat") {
+    const latestUserMessage = [...userMessages].reverse().find((message) => message.role === "user")?.content || "";
+    if (latestUserMessage) {
+      const knowledgeChunks = await retrieveKnowledge(latestUserMessage, 4);
+      retrievedChunksCount = knowledgeChunks.length;
+      if (knowledgeChunks.length > 0) {
+        const context = renderKnowledgeContext(knowledgeChunks);
+        systemPrompt = `${baseSystemPrompt}
+
+Используй базу знаний ниже как главный источник фактов о клинике.
+Не придумывай услуги, цены, условия или контакты, которых нет в контексте.
+Если точного ответа нет в контексте, прямо скажи, что уточнишь у специалиста и предложи созвон с врачом.
+
+КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ:
+${context}`;
+      } else {
+        systemPrompt = `${baseSystemPrompt}
+
+Контекст базы знаний по этому вопросу не найден.
+Не выдумывай детали о клинике. Честно сообщи, что уточнишь информацию у специалиста и предложи связать с врачом.`;
+      }
+    }
   }
 
   try {
@@ -101,6 +191,8 @@ export async function POST(request: Request) {
       const decoder = new TextDecoder();
       const reader = upstream.body.getReader();
       let buffer = "";
+      let assistantContent = "";
+      let streamedChunkCount = 0;
 
       const streamOut = new ReadableStream<Uint8Array>({
         async start(controller) {
@@ -122,8 +214,29 @@ export async function POST(request: Request) {
                 const parsed = safeJsonParse(data);
                 const token = parsed?.choices?.[0]?.delta?.content;
                 if (typeof token === "string" && token.length > 0) {
+                  assistantContent += token;
+                  streamedChunkCount += 1;
                   controller.enqueue(encoder.encode(token));
                 }
+              }
+            }
+
+            if (chatSessionId && assistantContent) {
+              try {
+                await saveChatMessage({
+                  sessionId: chatSessionId,
+                  role: "assistant",
+                  content: assistantContent,
+                  metadata: {
+                    model: CHAT_MODEL,
+                    stream: true,
+                    streamed_chunks: streamedChunkCount,
+                    latency_ms: Date.now() - requestStartedAt,
+                    retrieved_chunks_count: retrievedChunksCount,
+                  },
+                });
+              } catch (error) {
+                console.error("Chat persistence warning:", error);
               }
             }
             controller.close();
@@ -140,6 +253,7 @@ export async function POST(request: Request) {
           "Content-Type": "text/plain; charset=utf-8",
           "Cache-Control": "no-cache, no-transform",
           Connection: "keep-alive",
+          "X-Session-Id": chatSessionId,
         },
       });
     }
@@ -160,7 +274,25 @@ export async function POST(request: Request) {
       }
       return NextResponse.json(parsed);
     }
-    return NextResponse.json({ reply: content });
+    if (mode === "chat" && chatSessionId && content) {
+      try {
+        await saveChatMessage({
+          sessionId: chatSessionId,
+          role: "assistant",
+          content,
+          metadata: {
+            model: CHAT_MODEL,
+            stream: false,
+            latency_ms: Date.now() - requestStartedAt,
+            retrieved_chunks_count: retrievedChunksCount,
+          },
+        });
+      } catch (error) {
+        console.error("Chat persistence warning:", error);
+      }
+    }
+
+    return NextResponse.json({ reply: content, sessionId: chatSessionId || undefined });
   } catch (error) {
     return NextResponse.json(
       {
