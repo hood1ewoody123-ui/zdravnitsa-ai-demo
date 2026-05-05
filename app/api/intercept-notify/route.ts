@@ -84,7 +84,12 @@ export async function POST(request: Request) {
       .update({ webhook_status: "sent", webhook_response: details || "sent" })
       .eq("id", lead.id);
 
-    return NextResponse.json({ ok: true, details: details || "sent", leadId: lead.id });
+    return NextResponse.json({
+      ok: true,
+      details: details || "sent",
+      leadId: lead.id,
+      lead_id: lead.id,
+    });
   } catch (error) {
     return NextResponse.json(
       {

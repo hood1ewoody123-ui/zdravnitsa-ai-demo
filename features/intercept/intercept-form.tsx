@@ -88,10 +88,11 @@ export function InterceptForm() {
       const notifyPayload = (await notifyResponse.json()) as { leadId?: string; lead_id?: string; error?: string };
       if (!notifyResponse.ok) throw new Error(notifyPayload?.error || "ошибка webhook");
 
-      const leadId = notifyPayload.leadId || notifyPayload.lead_id;
+      const leadId = notifyPayload.lead_id ?? notifyPayload.leadId;
       if (!leadId) throw new Error("Сервер не вернул ID заявки");
 
-      window.location.assign(telegramInterceptDeepLink(leadId));
+      const deepLink = telegramInterceptDeepLink(leadId);
+      window.open(deepLink, "_blank", "noopener,noreferrer");
     } catch (error) {
       setInterceptStatus(`Произошла ошибка: ${(error as Error).message}`);
     }
@@ -137,7 +138,7 @@ export function InterceptForm() {
         </Button>
 
         <p className="text-xs text-muted">
-          После отправки откроется Telegram-бот: вы сможете продолжить диалог там, а менеджер получит уведомление.
+          После отправки откроется Telegram-бот в новой вкладке; менеджер параллельно получит уведомление.
         </p>
         <p className={`min-h-5 text-sm ${statusClass}`}>{interceptStatus}</p>
       </form>
