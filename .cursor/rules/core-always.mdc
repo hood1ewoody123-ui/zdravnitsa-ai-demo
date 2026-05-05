@@ -1,0 +1,15 @@
+---
+description: Core product and safety constraints for all tasks
+alwaysApply: true
+---
+
+# Core rules
+
+- Keep this project as a demo landing with three flows: intercept, protocolist, chat consultant.
+- Use Next.js App Router + TypeScript as the canonical app architecture.
+- Use backend code only inside `app/api/*/route.ts`.
+- Route all AI calls via OpenRouter only.
+- Never expose or hardcode secrets in frontend files.
+- For medical content: no diagnosis, no treatment instructions, escalate to a live doctor when uncertain.
+- After each completed milestone, update `roadmap.md` immediately.
+- Use `docs/architecture.md`, `docs/prompts.md`, `docs/ui-spec.md`, `docs/design-tokens.md`, `docs/migration-nextjs-todo.md`, and `roadmap.md` for full detail.

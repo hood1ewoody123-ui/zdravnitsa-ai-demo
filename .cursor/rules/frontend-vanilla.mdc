@@ -1,0 +1,14 @@
+---
+description: Next frontend conventions for landing and widgets
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend conventions
+
+- Use React + TypeScript components only.
+- Use Tailwind CSS utilities with semantic design tokens from theme config.
+- Use Radix primitives wrapped in shadcn-style local components for UI building blocks.
+- Use Lucide React for icons and Framer Motion for meaningful micro-interactions.
+- Use React Hook Form + Zod for form UX, not ad-hoc validation.
+- Client code calls only internal `/api/*` routes and n8n endpoints through backend handlers.

@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-background text-foreground antialiased;
+  background-image: radial-gradient(1200px 800px at 20% -10%, #222741 0%, #13151f 45%, #101117 100%);
+}
+
+.container-x {
+  @apply mx-auto w-[92%] max-w-6xl;
+}

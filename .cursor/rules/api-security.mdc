@@ -1,0 +1,13 @@
+---
+description: API layer security and integration rules
+globs: app/api/**/*.ts
+alwaysApply: false
+---
+
+# API security rules
+
+- Read secrets from `process.env` only.
+- Never return secrets to clients.
+- Keep endpoint purpose explicit: `chat` for LLM, `whisper` for transcription, `intercept-notify` for webhook forwarding.
+- Validate and sanitize incoming payloads before forwarding upstream.
+- Use OpenRouter models: `anthropic/claude-sonnet-4-5` and `openai/whisper-1`.

@@ -1,0 +1,32 @@
+# Здравница AI Demo — core rules
+
+Этот файл должен оставаться коротким. Детали лежат в `docs/` и `.cursor/rules/`.
+
+## Цель проекта
+- Подготовить стабильное демо из 3 сценариев на одном лендинге за 17 минут показа:
+  1) перехват заявок, 2) протоколист звонков, 3) чат-консультант Мила.
+
+## Обязательный стек
+- Frontend: Next.js (App Router) + TypeScript.
+- UI: Tailwind CSS + Radix UI (shadcn-style) + Lucide React + Framer Motion.
+- Forms/validation: React Hook Form + Zod.
+- Client state: Zustand.
+- Backend: Route Handlers в `app/api/*`.
+- AI: только OpenRouter (`https://openrouter.ai/api/v1`).
+- Модели: `anthropic/claude-sonnet-4-5`, `openai/whisper-1`.
+
+## Критичные ограничения
+- Секреты только в `.env`/Vercel env, никогда в фронтенде.
+- Ключи читаются только через `process.env` внутри `app/api/*`.
+- Клиент не ходит напрямую во внешние AI API, только во внутренние `/api/*`.
+- Никаких медицинских диагнозов и медицинских советов в ответах агента.
+- При неопределенности агент направляет к живому врачу.
+- После завершения каждого шага/подзадачи обязательно сразу отмечать прогресс в `roadmap.md` (чекбоксы и краткий статус при необходимости).
+
+## Где подробности
+- Архитектура и флоу: `docs/architecture.md`
+- Промпты агентов: `docs/prompts.md`
+- UI/дизайн и анимации: `docs/ui-spec.md`
+- Канон токенов и форм UX: `docs/design-tokens.md`
+- План миграции на Next: `docs/migration-nextjs-todo.md`
+- Порядок реализации и демо-сценарий: `roadmap.md`
