@@ -365,6 +365,7 @@ N8N_WEBHOOK_PROTOCOL=https://.../webhook/protocol
 - [x] Добавить автозакрытие неактивных чат-сессий (30 минут)
 - [x] Добавить внутренний read-only экран истории чатов (`/admin/chats`)
 - [x] Подмешивать последние сообщения сессии в `/api/chat` (чтобы Telegram-чат не сбрасывал контекст на каждом сообщении)
+- [x] Сопоставлять Telegram `sessionId` формата `tg_<chat_id>` с UUID-сессией через `chat_sessions_demo.visitor_fingerprint`
 
 Краткий итог сессии (Telegram Intercept + PDF):
 - Настроили стабильную доставку PDF в Telegram как документ (`Send Document`) вместо отправки текстовой ссылки.

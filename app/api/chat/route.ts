@@ -48,6 +48,10 @@ type StoredChatMessage = {
   content: string;
 };
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function safeJsonParse(value: string) {
   try {
     return JSON.parse(value);
@@ -67,11 +71,46 @@ function tryExtractJson(raw: string) {
 async function ensureChatSession(sessionId?: string) {
   const supabase = createSupabaseServerClient();
   if (sessionId) {
-    await supabase
+    if (isUuid(sessionId)) {
+      await supabase
+        .from("chat_sessions_demo")
+        .update({ status: "active", last_activity_at: new Date().toISOString() })
+        .eq("id", sessionId);
+      return sessionId;
+    }
+
+    // Telegram sends external keys like tg_<chat_id>, map them to a real UUID session.
+    const { data: existingSession } = await supabase
       .from("chat_sessions_demo")
-      .update({ status: "active", last_activity_at: new Date().toISOString() })
-      .eq("id", sessionId);
-    return sessionId;
+      .select("id")
+      .eq("source", "telegram")
+      .eq("visitor_fingerprint", sessionId)
+      .maybeSingle();
+
+    if (existingSession?.id) {
+      await supabase
+        .from("chat_sessions_demo")
+        .update({ status: "active", last_activity_at: new Date().toISOString() })
+        .eq("id", existingSession.id);
+      return existingSession.id as string;
+    }
+
+    const { data: createdSession, error: createError } = await supabase
+      .from("chat_sessions_demo")
+      .insert({
+        source: "telegram",
+        visitor_fingerprint: sessionId,
+        status: "active",
+        last_activity_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (createError || !createdSession?.id) {
+      throw new Error(`Unable to create telegram session: ${createError?.message || "unknown error"}`);
+    }
+
+    return createdSession.id as string;
   }
 
   const { data, error } = await supabase
