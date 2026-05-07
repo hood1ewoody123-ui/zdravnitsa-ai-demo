@@ -43,6 +43,11 @@ type ChatBody = {
   sessionId?: string;
 };
 
+type StoredChatMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+};
+
 function safeJsonParse(value: string) {
   try {
     return JSON.parse(value);
@@ -105,6 +110,25 @@ async function saveChatMessage(params: {
     .eq("id", params.sessionId);
 }
 
+async function loadRecentChatMessages(sessionId: string, limit = 12) {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("chat_messages_demo")
+    .select("role,content,created_at")
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Unable to load chat history: ${error.message}`);
+  }
+
+  return ((data || []) as StoredChatMessage[])
+    .reverse()
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .map((message) => ({ role: message.role, content: message.content }));
+}
+
 async function closeStaleSessions(inactiveMinutes = 30) {
   const supabase = createSupabaseServerClient();
   const thresholdIso = new Date(Date.now() - inactiveMinutes * 60_000).toISOString();
@@ -158,6 +182,12 @@ export async function POST(request: Request) {
             stream_requested: stream,
           },
         });
+      }
+
+      // Always send recent persisted history to the model so Telegram chat keeps context.
+      const historyMessages = await loadRecentChatMessages(chatSessionId, 12);
+      if (historyMessages.length > 0) {
+        userMessages = historyMessages;
       }
     } catch (error) {
       console.error("Chat persistence warning:", error);
