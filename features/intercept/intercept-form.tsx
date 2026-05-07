@@ -63,6 +63,8 @@ export function InterceptForm() {
 
   const onSubmit = handleSubmit(async (values) => {
     setInterceptStatus("");
+    // Open a tab synchronously from the user gesture to avoid mobile popup blockers.
+    const telegramTab = typeof window !== "undefined" ? window.open("", "_blank") : null;
     try {
       const chatResponse = await fetch("/api/chat", {
         method: "POST",
@@ -92,8 +94,13 @@ export function InterceptForm() {
       if (!leadId) throw new Error("Сервер не вернул ID заявки");
 
       const deepLink = telegramInterceptDeepLink(leadId);
-      window.open(deepLink, "_blank", "noopener,noreferrer");
+      if (telegramTab && !telegramTab.closed) {
+        telegramTab.location.href = deepLink;
+      } else {
+        window.location.href = deepLink;
+      }
     } catch (error) {
+      if (telegramTab && !telegramTab.closed) telegramTab.close();
       setInterceptStatus(`Произошла ошибка: ${(error as Error).message}`);
     }
   });
