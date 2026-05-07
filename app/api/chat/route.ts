@@ -75,7 +75,7 @@ function tryExtractJson(raw: string) {
   return safeJsonParse(match[0]);
 }
 
-async function ensureChatSession(sessionId?: string) {
+async function ensureChatSession(sessionId?: string, profile?: ChatBody["profile"]) {
   const supabase = createSupabaseServerClient();
   if (sessionId) {
     if (isUuid(sessionId)) {
@@ -86,7 +86,47 @@ async function ensureChatSession(sessionId?: string) {
       return sessionId;
     }
 
-    // Telegram sends external keys like tg_<chat_id>, map them to a real UUID session.
+    const leadScopedFingerprint = profile?.lead_id ? `${sessionId}__${profile.lead_id}` : "";
+
+    // Prefer a lead-scoped Telegram session when lead_id is known.
+    if (leadScopedFingerprint) {
+      const { data: leadSession } = await supabase
+        .from("chat_sessions_demo")
+        .select("id")
+        .eq("source", "telegram")
+        .eq("visitor_fingerprint", leadScopedFingerprint)
+        .maybeSingle();
+
+      if (leadSession?.id) {
+        await supabase
+          .from("chat_sessions_demo")
+          .update({ status: "active", last_activity_at: new Date().toISOString() })
+          .eq("id", leadSession.id);
+        return leadSession.id as string;
+      }
+    }
+
+    // If lead_id is absent, attach to the latest lead-scoped session for this chat.
+    if (!leadScopedFingerprint) {
+      const { data: latestScopedSessions } = await supabase
+        .from("chat_sessions_demo")
+        .select("id")
+        .eq("source", "telegram")
+        .like("visitor_fingerprint", `${sessionId}__%`)
+        .order("last_activity_at", { ascending: false })
+        .limit(1);
+
+      const latestScopedId = latestScopedSessions?.[0]?.id;
+      if (latestScopedId) {
+        await supabase
+          .from("chat_sessions_demo")
+          .update({ status: "active", last_activity_at: new Date().toISOString() })
+          .eq("id", latestScopedId);
+        return latestScopedId as string;
+      }
+    }
+
+    // Backward-compatible lookup for old unscoped Telegram sessions.
     const { data: existingSession } = await supabase
       .from("chat_sessions_demo")
       .select("id")
@@ -106,7 +146,7 @@ async function ensureChatSession(sessionId?: string) {
       .from("chat_sessions_demo")
       .insert({
         source: "telegram",
-        visitor_fingerprint: sessionId,
+        visitor_fingerprint: leadScopedFingerprint || sessionId,
         status: "active",
         last_activity_at: new Date().toISOString(),
       })
@@ -227,7 +267,7 @@ export async function POST(request: Request) {
   if (mode === "chat") {
     try {
       await closeStaleSessions(30);
-      chatSessionId = await ensureChatSession(body.sessionId);
+      chatSessionId = await ensureChatSession(body.sessionId, body.profile);
       const existingHistory = await loadRecentChatMessages(chatSessionId, 12);
       const profileSeed = buildProfileSeed(body.profile);
       if (existingHistory.length === 0 && profileSeed) {
