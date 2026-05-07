@@ -1,12 +1,9 @@
 import { Brain, MessageCircleHeart, ShieldCheck, Stethoscope } from "lucide-react";
+import { LiveTime } from "@/components/live-time";
 import { ChatWidget } from "@/features/chat/chat-widget";
 import { InterceptForm } from "@/features/intercept/intercept-form";
 
 function Header() {
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
-
   return (
     <header className="sticky top-0 z-20 border-b border-outline bg-[#0f1118]/85 backdrop-blur-md">
       <div className="container-x flex min-h-16 items-center justify-between gap-3">
@@ -17,7 +14,7 @@ function Header() {
         <div className="inline-flex items-center gap-2 text-xs text-muted">
           <span className="h-2 w-2 rounded-full bg-success animate-pulse-dot" />
           <span>Система активна</span>
-          <time>{`${hh}:${mm}`}</time>
+          <LiveTime />
         </div>
       </div>
     </header>

@@ -102,7 +102,7 @@ export function ChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.98 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-6 right-6 z-40 flex h-[520px] w-[380px] flex-col rounded-2xl border border-outline bg-surface shadow-elev-3"
+            className="fixed inset-x-2 bottom-2 top-20 z-40 flex flex-col rounded-xl border border-outline bg-surface shadow-elev-3 md:inset-x-auto md:bottom-6 md:right-6 md:top-auto md:h-[520px] md:w-[380px] md:rounded-2xl"
           >
             <div className="flex items-center justify-between border-b border-outline px-4 py-3">
               <div className="inline-flex items-center gap-2">
@@ -123,7 +123,11 @@ export function ChatWidget() {
               {messages.map((message, index) => (
                 <div
                   key={`${message.role}-${index}`}
-                  className={message.role === "user" ? "ml-10 rounded-2xl bg-primary p-3 text-sm text-primary-foreground" : "mr-10 rounded-2xl bg-surface-container p-3 text-sm text-foreground"}
+                  className={
+                    message.role === "user"
+                      ? "ml-6 rounded-2xl bg-primary p-3 text-sm text-primary-foreground md:ml-10"
+                      : "mr-6 rounded-2xl bg-surface-container p-3 text-sm text-foreground md:mr-10"
+                  }
                 >
                   {message.content || (streaming ? "Мила печатает..." : "")}
                 </div>
@@ -158,7 +162,7 @@ export function ChatWidget() {
       <Button
         type="button"
         variant="secondary"
-        className="fixed bottom-6 right-6 z-30 rounded-full shadow-elev-2"
+        className="fixed bottom-4 left-4 right-4 z-30 rounded-full shadow-elev-2 md:bottom-6 md:left-auto md:right-6"
         onClick={() => setOpen(true)}
       >
         <MessageCircle className="h-4 w-4" />

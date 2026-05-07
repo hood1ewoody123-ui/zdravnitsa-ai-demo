@@ -368,6 +368,8 @@ N8N_WEBHOOK_PROTOCOL=https://.../webhook/protocol
 - [x] Сопоставлять Telegram `sessionId` формата `tg_<chat_id>` с UUID-сессией через `chat_sessions_demo.visitor_fingerprint`
 - [x] Добавить seed-контекст Telegram-профиля в первую запись сессии (`profile.first_name/username/lead_id/situation`) для корректной памяти с первого сообщения
 - [x] Уточнить `SYSTEM_PROMPTS.chat`: при явном запросе контактов сразу отдавать номер `+7 (495) 532-44-03` и сайт `narcorehab.com`
+- [x] Улучшить мобильный UX перехвата: вместо `about:blank` сразу открывать Telegram-бота и затем подставлять deep-link c `lead_id`
+- [x] Улучшить мобильный адаптив виджета Милы: почти полноэкранное окно на маленьких экранах, безопасные отступы и удобная кнопка открытия
 
 Краткий итог сессии (Telegram Intercept + PDF):
 - Настроили стабильную доставку PDF в Telegram как документ (`Send Document`) вместо отправки текстовой ссылки.

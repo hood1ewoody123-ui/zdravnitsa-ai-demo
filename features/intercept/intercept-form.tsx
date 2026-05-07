@@ -35,6 +35,11 @@ function telegramInterceptDeepLink(leadId: string) {
   return `https://t.me/${bot}?start=${encodeURIComponent(leadId)}`;
 }
 
+function telegramBotUrl() {
+  const bot = (process.env.NEXT_PUBLIC_TELEGRAM_INTERCEPT_BOT || "nnarcorehab_bot").replace(/^@/, "");
+  return `https://t.me/${bot}`;
+}
+
 export function InterceptForm() {
   const { interceptStatus, setInterceptStatus } = useUiStore();
   const {
@@ -63,8 +68,8 @@ export function InterceptForm() {
 
   const onSubmit = handleSubmit(async (values) => {
     setInterceptStatus("");
-    // Open a tab synchronously from the user gesture to avoid mobile popup blockers.
-    const telegramTab = typeof window !== "undefined" ? window.open("", "_blank") : null;
+    // Open Telegram immediately from the user gesture to avoid mobile popup blockers and blank tabs.
+    const telegramTab = typeof window !== "undefined" ? window.open(telegramBotUrl(), "_blank") : null;
     try {
       const chatResponse = await fetch("/api/chat", {
         method: "POST",
