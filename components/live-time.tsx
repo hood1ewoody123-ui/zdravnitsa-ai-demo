@@ -10,14 +10,15 @@ function formatTime(date: Date) {
 }
 
 export function LiveTime() {
-  const [time, setTime] = useState(() => formatTime(new Date()));
+  const [time, setTime] = useState("");
 
   useEffect(() => {
+    setTime(formatTime(new Date()));
     const timer = window.setInterval(() => {
       setTime(formatTime(new Date()));
     }, 1000);
     return () => window.clearInterval(timer);
   }, []);
 
-  return <time>{time}</time>;
+  return <time suppressHydrationWarning>{time || "--:--:--"}</time>;
 }
