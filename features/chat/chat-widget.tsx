@@ -161,12 +161,14 @@ export function ChatWidget() {
 
       <Button
         type="button"
-        variant="secondary"
-        className="fixed bottom-4 left-4 right-4 z-30 rounded-full shadow-elev-2 md:bottom-6 md:left-auto md:right-6"
+        variant="default"
+        className="fixed right-0 top-1/2 z-30 h-14 -translate-y-1/2 rounded-l-xl rounded-r-none px-3 shadow-elev-2 md:bottom-6 md:right-6 md:top-auto md:h-auto md:translate-y-0 md:rounded-full md:px-4"
         onClick={() => setOpen(true)}
       >
-        <MessageCircle className="h-4 w-4" />
-        Мила онлайн
+        <MessageCircle className="h-4 w-4 md:h-4 md:w-4" />
+        <span className="ml-2 inline-block text-xs font-semibold tracking-wide [writing-mode:vertical-rl] [text-orientation:mixed] md:ml-2 md:text-sm md:[writing-mode:horizontal-tb]">
+          Мила онлайн
+        </span>
       </Button>
     </>
   );
