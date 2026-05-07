@@ -41,6 +41,12 @@ type ChatBody = {
   messages?: Array<{ role: string; content: string }>;
   stream?: boolean;
   sessionId?: string;
+  profile?: {
+    first_name?: string;
+    username?: string;
+    lead_id?: string;
+    situation?: string;
+  };
 };
 
 type StoredChatMessage = {
@@ -168,6 +174,17 @@ async function loadRecentChatMessages(sessionId: string, limit = 12) {
     .map((message) => ({ role: message.role, content: message.content }));
 }
 
+function buildProfileSeed(profile?: ChatBody["profile"]) {
+  if (!profile) return "";
+  const lines: string[] = [];
+  if (profile.first_name) lines.push(`Имя пользователя: ${profile.first_name}`);
+  if (profile.username) lines.push(`Telegram username: @${profile.username.replace(/^@/, "")}`);
+  if (profile.lead_id) lines.push(`Lead ID: ${profile.lead_id}`);
+  if (profile.situation) lines.push(`Изначальная ситуация из перехвата: ${profile.situation}`);
+  if (lines.length === 0) return "";
+  return `Контекст Telegram-сессии:\n${lines.join("\n")}`;
+}
+
 async function closeStaleSessions(inactiveMinutes = 30) {
   const supabase = createSupabaseServerClient();
   const thresholdIso = new Date(Date.now() - inactiveMinutes * 60_000).toISOString();
@@ -210,6 +227,20 @@ export async function POST(request: Request) {
     try {
       await closeStaleSessions(30);
       chatSessionId = await ensureChatSession(body.sessionId);
+      const existingHistory = await loadRecentChatMessages(chatSessionId, 12);
+      const profileSeed = buildProfileSeed(body.profile);
+      if (existingHistory.length === 0 && profileSeed) {
+        await saveChatMessage({
+          sessionId: chatSessionId,
+          role: "system",
+          content: profileSeed,
+          metadata: {
+            model: CHAT_MODEL,
+            seed: "telegram_profile",
+          },
+        });
+      }
+
       const latestUserMessage = [...userMessages].reverse().find((message) => message.role === "user");
       if (latestUserMessage?.content) {
         await saveChatMessage({
