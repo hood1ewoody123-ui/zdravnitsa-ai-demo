@@ -161,7 +161,7 @@ export function ChatWidget() {
 
       <Button
         type="button"
-        variant="default"
+        variant="primary"
         className="fixed right-0 top-1/2 z-30 h-14 -translate-y-1/2 rounded-l-xl rounded-r-none px-3 shadow-elev-2 md:bottom-6 md:right-6 md:top-auto md:h-auto md:translate-y-0 md:rounded-full md:px-4"
         onClick={() => setOpen(true)}
       >
